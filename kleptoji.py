@@ -1,37 +1,26 @@
 import dotenv
-import discord
 import os
-from discord_slash import SlashCommand # Importing the newly installed library.
-from discord_slash.utils.manage_commands import create_option
 import re
 import random
+import traceback
 import requests
+import discord
 
 dotenv.load_dotenv()
-
-client = discord.Client(intents=discord.Intents.none())
-slash = SlashCommand(client, sync_commands=True) # Declares slash commands through the client.
+client = discord.Client()
 
 @client.event
 async def on_ready():
     print("Kleptoji is ready!")
 
-#guild_ids = [894965656607391764]
-
-@slash.slash(name="steal",
-             description="Steal custom emojis from another server.",
-             options=[
-               create_option(
-                 name="emojis",
-                 description="The list of emojis to steal.",
-                 option_type=3,
-                 required=True
-               )
-             ])
-async def _steal(ctx, emojis: str):
+@client.event
+async def on_message(ctx):
+    if not ctx.content.startswith('steal'):
+        return
+    emojis = ctx.content.split('steal ')[-1]
     status_message = list("Stealing emojis... 👤💰 ")
     base_length = len(status_message)
-    msg = await ctx.send(''.join(status_message))
+    msg = await ctx.channel.send(''.join(status_message))
     animated_emojis = re.findall(r'<a:(.+?):(\d+)>', emojis)
     still_emojis = re.findall(r'<:(.+?):(\d+)>', emojis)
     emojis_to_upload = []
@@ -50,6 +39,7 @@ async def _steal(ctx, emojis: str):
         try:
             response = requests.get(emojis_to_upload[i][1])
         except Exception:
+            traceback.print_exc()
             status_message[base_length + i] = "🔴"
             continue
 
@@ -58,11 +48,12 @@ async def _steal(ctx, emojis: str):
             success += 1
             status_message[base_length + i] = "🟢"
         except Exception:
+            traceback.print_exc()
             status_message[base_length + i] = "🔴"
             continue
     await msg.edit(content=''.join(status_message))
 
-    await ctx.send(f"{random.choice(['Et voilà!', 'Job done!', 'All done!'])} {success}/{len(emojis_to_upload)} emojis stolen. 💰")
+    await ctx.channel.send(f"{random.choice(['Et voilà!', 'Job done!', 'All done!'])} {success}/{len(emojis_to_upload)} emojis stolen. 💰")
 
 
-client.run(os.environ.get('KLEPTOJI_KEY'))
+client.run(os.getenv('KLEPTOJI_KEY'))
